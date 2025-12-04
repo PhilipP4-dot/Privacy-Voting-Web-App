@@ -3,4 +3,4 @@
 pip install sqlalchemy fastapi uvicorn
 
 run backend with:
-   python -m backend.filename
+    python -m uvicorn backend.main:app --reload
