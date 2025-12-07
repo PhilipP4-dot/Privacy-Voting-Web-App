@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Privacy Voting Web App</title>
+    <style>
+        body {
+            background: #121212;
+            color: #e5e5e5;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #1e1e1e;
+            padding: 30px;
+            margin-top: 60px;
+            border-radius: 10px;
+            width: 450px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+        }
+
+        h1,
+        h2 {
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 16px;
+            padding: 8px 0;
+            cursor: pointer;
+        }
+
+        input[type="radio"] {
+            accent-color: #bb86fc;
+            transform: scale(1.2);
+            margin-right: 10px;
+        }
+
+        #submit {
+            width: 100%;
+            padding: 12px 0;
+            margin-top: 20px;
+            border: none;
+            border-radius: 8px;
+            background: #bb86fc;
+            color: #121212;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: bold;
+        }
+
+        #submit:hover {
+            background: #d4a7ff;
+            box-shadow: 0 0 10px #bb86fc;
+        }
+
+        #results p {
+            margin: 6px 0;
+            padding: 6px 0;
+            border-bottom: 1px solid #333;
+            color: #cfcfcf;
+        }
+
+        #results {
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+
+        #poll-loader {
+            margin-bottom: 16px;
+        }
+
+        #poll-loader input {
+            width: 100px;
+            padding: 4px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #222;
+            color: #eee;
+            margin-right: 8px;
+        }
+
+        #load-btn {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: none;
+            background: #373737;
+            color: #eee;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="poll-loader">
+            <input type="number" id="poll-id-input" placeholder="Poll ID">
+            <button id="load-btn">Load poll</button>
+        </div>
+
+        <h1 id="question"></h1>
+        <div id="options"></div>
+        <button id="submit">Submit Vote</button>
+
+        <h2>Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

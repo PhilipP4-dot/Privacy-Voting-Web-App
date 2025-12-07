@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Poll Creator Dashboard</title>
+    <style>
+        body {
+            background: #121212;
+            color: #e5e5e5;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: #1e1e1e;
+            padding: 30px;
+            margin-top: 50px;
+            border-radius: 12px;
+            width: 600px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+        }
+
+        h1,
+        h2 {
+            margin-bottom: 15px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            border-radius: 6px;
+            border: 1px solid #333;
+            background: #222;
+            color: #eee;
+        }
+
+        button {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 6px 4px 0 0;
+        }
+
+        .primary-btn {
+            background: #bb86fc;
+            color: #121212;
+        }
+
+        .primary-btn:hover {
+            background: #d4a7ff;
+            box-shadow: 0 0 10px #bb86fc;
+        }
+
+        .danger-btn {
+            background: #cf6679;
+            color: #121212;
+        }
+
+        .neutral-btn {
+            background: #333;
+            color: #eee;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 6px 0;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        code {
+            background: #222;
+            padding: 5px 8px;
+            border-radius: 6px;
+            display: block;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Poll Creator Dashboard</h1>
+
+        <!-- CREATE POLL -->
+        <section>
+            <h2>Create New Poll</h2>
+            <input type="text" id="new-question" placeholder="Enter poll question">
+            <input type="text" id="new-option" placeholder="Add poll option">
+            <button id="add-option" class="neutral-btn">Add Option</button>
+
+            <ul id="option-list"></ul>
+
+            <button id="create-poll" class="primary-btn">Create Poll</button>
+
+            <div id="created-info"></div>
+        </section>
+
+        <hr style="margin: 25px 0; border-color:#333">
+
+        <!-- LOAD POLL -->
+        <section>
+            <h2>Load Existing Poll</h2>
+            <input type="number" id="load-id" placeholder="Poll ID">
+            <button id="load-poll" class="neutral-btn">Load Poll</button>
+            <div id="loaded-info"></div>
+            <ul id="loaded-options"></ul>
+
+            <button id="close-poll" class="danger-btn">Close Poll</button>
+
+            <h3>Results</h3>
+            <div id="poll-results"></div>
+        </section>
+
+    </div>
+
+    <script src="creator.js"></script>
+</body>
+
+</html>
