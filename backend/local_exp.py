@@ -202,11 +202,12 @@ for N in N_values:
         for i in range(4):
             avg_true[i] += true_vec[i]
             avg_debiased[i] += debiased_vec[i]
-
+    print(f"\nResults for N={N} over {TRIALS} trials:")
+    options = ["Prof. Kretchmar","Prof. Law","Prof. Lall","Prof. Truex"]
     for i in range(4):
         avg_true[i] /= TRIALS
         avg_debiased[i] /= TRIALS
-
+        print(f"{options[i]}: True avg={avg_true[i]:.2f}, Debiased avg={avg_debiased[i]:.2f}")
     abs_errors = np.abs(avg_true - avg_debiased)
     all_errors.append(abs_errors)
 
