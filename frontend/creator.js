@@ -1,11 +1,12 @@
 const api = "http://127.0.0.1:8000";
 
-let newOptions = [];
+let newOptions = [];      // {text, weight}
 let loadedPollId = null;
 
-// DOM elements
+// DOM references
 const qInput = document.getElementById("new-question");
 const optInput = document.getElementById("new-option");
+const weightInput = document.getElementById("option-weight");
 const optList = document.getElementById("option-list");
 const createBtn = document.getElementById("create-poll");
 const createdInfo = document.getElementById("created-info");
@@ -14,53 +15,60 @@ const loadId = document.getElementById("load-id");
 const loadBtn = document.getElementById("load-poll");
 const loadedInfo = document.getElementById("loaded-info");
 const loadedOptions = document.getElementById("loaded-options");
+
 const closePollBtn = document.getElementById("close-poll");
 const resultsDiv = document.getElementById("poll-results");
 
-
-// Add new option to local list
+// ---- ADD OPTION LOCALLY BEFORE CREATION ----
 document.getElementById("add-option").onclick = () => {
     const text = optInput.value.trim();
+    const weight = Number(weightInput.value) || 1.0;
+
     if (!text) return;
 
-    newOptions.push(text);
+    newOptions.push({ text, weight });
 
     const li = document.createElement("li");
-    li.textContent = text;
+    li.textContent = `${text} (weight = ${weight})`;
     optList.appendChild(li);
 
     optInput.value = "";
+    weightInput.value = "";
 };
 
-
-// Create poll flow
+// ---- CREATE POLL ----
 createBtn.onclick = async () => {
     const question = qInput.value.trim();
+
     if (!question || newOptions.length < 2) {
-        alert("Enter question and at least 2 options.");
+        alert("Enter a question and at least two options.");
         return;
     }
 
-    // 1. Create poll
-    const res = await fetch(api + "/create_poll", {
+    // 1. create poll
+    const pollRes = await fetch(api + "/create_poll", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question })
     });
 
-    const data = await res.json();
-    const pollId = data.poll_id;
+    const pollData = await pollRes.json();
+    const pollId = pollData.poll_id;
 
-    // 2. Add options
-    for (const text of newOptions) {
+    // 2. send options with weights
+    for (const opt of newOptions) {
         await fetch(api + "/add_option", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ poll_id: pollId, text })
+            body: JSON.stringify({
+                poll_id: pollId,
+                text: opt.text,
+                weight: opt.weight
+            })
         });
     }
 
-    // Show info
+    // display link
     const link = `${window.location.origin}/index.html?poll=${pollId}`;
     createdInfo.innerHTML = `
     <p><strong>Poll Created!</strong> ID: ${pollId}</p>
@@ -68,14 +76,15 @@ createBtn.onclick = async () => {
     <code>${link}</code>
   `;
 
+    loadedPollId = pollId;
+
     // reset
     newOptions = [];
     optList.innerHTML = "";
     qInput.value = "";
 };
 
-
-// Load existing poll
+// ---- LOAD EXISTING POLL ----
 loadBtn.onclick = async () => {
     const id = Number(loadId.value);
     if (!id) return;
@@ -84,25 +93,24 @@ loadBtn.onclick = async () => {
     const data = await res.json();
 
     if (data.error) {
-        loadedInfo.innerHTML = `<p>Poll not found.</p>`;
+        loadedInfo.innerHTML = "<p>Poll not found.</p>";
         return;
     }
 
     loadedPollId = id;
-    loadedInfo.innerHTML = `<p><strong>${data.question}</strong> (ID: ${id})</p>`;
+    loadedInfo.innerHTML = `<p><strong>${data.question}</strong> (ID: ${id}) -- Status: ${data.status}</p>`;
     loadedOptions.innerHTML = "";
 
     data.options.forEach(opt => {
         const li = document.createElement("li");
-        li.textContent = opt.text;
+        li.textContent = `${opt.text} (weight = ${opt.weight})`;
         loadedOptions.appendChild(li);
     });
 
     resultsDiv.innerHTML = "";
 };
 
-
-// Close poll
+// ---- CLOSE POLL ----
 closePollBtn.onclick = async () => {
     if (!loadedPollId) {
         alert("Load a poll first.");
@@ -114,16 +122,15 @@ closePollBtn.onclick = async () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poll_id: loadedPollId })
     });
-    const data = await res.json();
 
+    const data = await res.json();
     alert(data.message || "Poll closed.");
 
-    loadPollResults();
+    loadResults();
 };
 
-
-// Load results (only visible if poll is closed)
-async function loadPollResults() {
+// ---- LOAD DEBIASED RESULTS ----
+async function loadResults() {
     if (!loadedPollId) return;
 
     const res = await fetch(api + "/results/" + loadedPollId);
@@ -136,8 +143,9 @@ async function loadPollResults() {
 
     if (data.status === "ok") {
         resultsDiv.innerHTML = "";
-        for (const [name, count] of Object.entries(data.results)) {
-            resultsDiv.innerHTML += `<p>${name}: ${count}</p>`;
+        for (const [optText, est] of Object.entries(data.results)) {
+            const rounded = Math.max(0, Math.round(est));
+            resultsDiv.innerHTML += `<p>${optText}: ~${rounded}</p>`;
         }
     }
 }

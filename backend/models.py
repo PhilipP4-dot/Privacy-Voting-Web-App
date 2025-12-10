@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
@@ -8,7 +8,7 @@ class Poll(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     question = Column(String, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
     status = Column(String, default="open")  # "open" or "closed"
 
     options = relationship("Option", back_populates="poll", cascade="all, delete-orphan")
@@ -21,6 +21,7 @@ class Option(Base):
     id = Column(Integer, primary_key=True, index=True)
     poll_id = Column(Integer, ForeignKey("polls.id"))
     text = Column(String)
+    weight = Column(Integer, default=1)  # Privacy weight for this option
 
     poll = relationship("Poll", back_populates="options")
     votes = relationship("Vote", back_populates="option", cascade="all, delete-orphan")
@@ -32,7 +33,8 @@ class Vote(Base):
     id = Column(Integer, primary_key=True, index=True)
     poll_id = Column(Integer, ForeignKey("polls.id"))
     option_id = Column(Integer, ForeignKey("options.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    epsilon_used = Column(Float)  # Privacy parameter used for this vote
+    created_at = Column(DateTime, default=datetime.now)
 
     poll = relationship("Poll", back_populates="votes")
     option = relationship("Option", back_populates="votes")

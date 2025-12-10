@@ -3,109 +3,117 @@ const api = "http://127.0.0.1:8000";
 let pollId = null;
 let selectedOption = null;
 let voterId = null;
-let resultsIntervalId = null;
+let optionIds = [];
+let optionWeights = {};  // option_id → weight
+let pollStatus = "open";
 
-// Ensure a stable anonymous voter token per browser
+// Ensure persistent anonymous voter token
 if (!localStorage.getItem("voter_id")) {
-    const uuid = (self.crypto && self.crypto.randomUUID)
-        ? self.crypto.randomUUID()
-        : String(Math.random()) + Date.now();
-    localStorage.setItem("voter_id", uuid);
+    localStorage.setItem("voter_id", crypto.randomUUID());
 }
 voterId = localStorage.getItem("voter_id");
 
+// DOM elements
 const questionEl = document.getElementById("question");
 const optionsEl = document.getElementById("options");
 const resultsEl = document.getElementById("results");
 const submitBtn = document.getElementById("submit");
 const pollIdInput = document.getElementById("poll-id-input");
 const loadBtn = document.getElementById("load-btn");
+const privacySelect = document.getElementById("privacy-select");
 
-// Event delegation for radio buttons
-optionsEl.addEventListener("change", (e) => {
-    if (e.target.name === "vote") {
-        selectedOption = e.target.value;
-    }
-});
+// ---- LDP RANDOMIZED RESPONSE ----
+function weightedKRR(trueId, optionIds, epsilonUser, optionWeights) {
+    const k = optionIds.length;
+    if (k < 2) return trueId;
 
-// Load a poll by ID
-async function loadPoll(id) {
-    pollId = id;
-    selectedOption = null;
-    questionEl.textContent = "Loading poll...";
-    optionsEl.innerHTML = "";
-    resultsEl.innerHTML = "";
-    submitBtn.disabled = false;
+    // Creator-set weight for this option
+    const w = optionWeights[trueId] || 1.0;
 
-    try {
-        const res = await fetch(`${api}/poll/${pollId}`);
-        const data = await res.json();
+    // Effective epsilon: lower epsilon = stronger privacy
+    const effectiveEpsilon = epsilonUser / w;
 
-        if (data.error) {
-            questionEl.textContent = "Poll not found.";
-            submitBtn.disabled = true;
-            return;
-        }
+    const e = Math.exp(effectiveEpsilon);
+    const p = e / (e + k - 1);
+    const q = (1 - p) / (k - 1);
 
-        questionEl.textContent = data.question;
+    if (Math.random() < p) return trueId;
 
-        // Render options
-        optionsEl.innerHTML = "";
-        data.options.forEach(opt => {
-            const label = document.createElement("label");
-            label.innerHTML = `
-        <input type="radio" name="vote" value="${opt.id}">
-        ${opt.text}
-      `;
-            optionsEl.appendChild(label);
-        });
-
-        // Handle closed poll state from API
-        if (data.status === "closed") {
-            questionEl.textContent += " (Poll closed)";
-            submitBtn.disabled = true;
-        }
-
-        // Start polling results for this poll
-        startResultsPolling();
-    } catch (err) {
-        questionEl.textContent = "Error loading poll.";
-        submitBtn.disabled = true;
-    }
+    const others = optionIds.filter(id => id !== trueId);
+    return others[Math.floor(Math.random() * others.length)];
 }
 
-// Poll results periodically for the current poll
-function startResultsPolling() {
-    if (!pollId) return;
+// ---- LOAD POLL ----
+async function loadPoll(id) {
+    pollId = id;
+    questionEl.innerText = "Loading...";
+    optionsEl.innerHTML = "";
+    resultsEl.innerHTML = "";
 
-    if (resultsIntervalId !== null) {
-        clearInterval(resultsIntervalId);
+    const res = await fetch(api + "/poll/" + pollId);
+    const data = await res.json();
+
+    if (data.error) {
+        questionEl.innerText = "Poll not found.";
+        return;
     }
 
-    resultsIntervalId = setInterval(async () => {
-        try {
-            const res = await fetch(`${api}/results/${pollId}`);
-            const data = await res.json();
+    pollStatus = data.status;
+    optionIds = [];
+    optionWeights = {};
 
-            // If results are hidden until poll is closed
-            if (data.status === "hidden") {
-                resultsEl.innerHTML = `<p>${data.message}</p>`;
-                return;
-            }
+    questionEl.innerText = data.question +
+        (pollStatus === "closed" ? " (Poll closed)" : "");
 
-            if (data.status === "ok" && data.results) {
-                resultsEl.innerHTML = "";
-                for (const [name, count] of Object.entries(data.results)) {
-                    resultsEl.innerHTML += `<p>${name}: ${count}</p>`;
-                }
+    data.options.forEach(opt => {
+        optionIds.push(opt.id);
+        optionWeights[opt.id] = opt.weight;
+
+        const label = document.createElement("label");
+        label.innerHTML = `
+      <input type="radio" name="vote" value="${opt.id}">
+      ${opt.text}
+    `;
+        optionsEl.appendChild(label);
+    });
+
+    document.addEventListener("change", (e) => {
+        if (e.target.name === "vote") {
+            selectedOption = e.target.value;
+        }
+    });
+
+    // Disable voting if poll closed
+    submitBtn.disabled = pollStatus === "closed";
+
+    startResultsPolling();
+}
+
+// ---- POLL RESULTS ----
+function startResultsPolling() {
+    setInterval(async () => {
+        if (!pollId) return;
+
+        const res = await fetch(api + "/results/" + pollId);
+        const data = await res.json();
+
+        if (data.status === "hidden") {
+            resultsEl.innerHTML = `<p>${data.message}</p>`;
+            return;
+        }
+        if (data.status === "ok") {
+            resultsEl.innerHTML = "";
+            const results = data.results;
+
+            for (const [name, est] of Object.entries(results)) {
+                const rounded = Math.max(0, Math.round(est));
+                resultsEl.innerHTML += `<p>${name}: ~${rounded}</p>`;
             }
-        } catch (err) {
-            // silently ignore for now
         }
     }, 1500);
 }
 
-// Load poll via "Load poll" button
+// ---- LOAD POLL BUTTON ----
 loadBtn.onclick = () => {
     const id = Number(pollIdInput.value);
     if (!id) {
@@ -115,7 +123,7 @@ loadBtn.onclick = () => {
     loadPoll(id);
 };
 
-// Load poll via ?poll= query parameter
+// Auto-load poll via ?poll=
 const params = new URLSearchParams(window.location.search);
 const paramPoll = params.get("poll");
 if (paramPoll) {
@@ -123,7 +131,7 @@ if (paramPoll) {
     loadPoll(Number(paramPoll));
 }
 
-// Submit vote
+// ---- SUBMIT VOTE ----
 submitBtn.onclick = async () => {
     if (!pollId) {
         alert("No poll loaded.");
@@ -133,33 +141,35 @@ submitBtn.onclick = async () => {
         alert("Pick an option.");
         return;
     }
+    if (pollStatus === "closed") {
+        alert("Poll is closed.");
+        return;
+    }
 
-    try {
-        const resp = await fetch(`${api}/vote`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                poll_id: Number(pollId),
-                option_id: Number(selectedOption),
-                voter_token: voterId
-            })
-        });
+    const trueId = Number(selectedOption);
+    const epsilonUser = Number(privacySelect.value);
 
-        const data = await resp.json();
+    const reportedId = weightedKRR(trueId, optionIds, epsilonUser, optionWeights);
+    const effectiveEpsilon = epsilonUser / (optionWeights[trueId] || 1.0);
 
-        if (data.status === "error") {
-            if (data.message === "Already voted") {
-                alert("You have already voted in this poll.");
-            } else if (data.message === "Poll is closed") {
-                alert("This poll is closed. You can't vote.");
-                submitBtn.disabled = true;
-            } else {
-                alert("Error: " + data.message);
-            }
-        } else {
-            alert("Vote recorded!");
-        }
-    } catch (err) {
-        alert("Error submitting vote.");
+    const resp = await fetch(api + "/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            poll_id: pollId,
+            option_id: reportedId,
+            voter_token: voterId,
+            epsilon_used: effectiveEpsilon
+        })
+    });
+
+    const data = await resp.json();
+
+    if (data.status === "error" && data.message === "Already voted") {
+        alert("You have already voted.");
+    } else if (data.status === "error") {
+        alert(data.message);
+    } else {
+        alert("Your private vote has been recorded.");
     }
 };
