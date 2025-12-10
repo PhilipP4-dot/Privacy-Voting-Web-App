@@ -227,8 +227,9 @@ for N in N_values:
     plt.ylabel("Counts")
     plt.legend()
     plt.grid(axis="y")
-    plt.show()
+    #plt.show()
     plt.savefig(f"debiasing_N_{N}.png")
+    plt.close()
 
 
 # # ============================================================
